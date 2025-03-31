@@ -286,20 +286,42 @@ const page = () => {
   )}
 </div>
 
-          <div className="flex gap-1.5 absolute top-16 left-[20rem] md:left-[38.3125rem] w-max">
+<div className="flex gap-1.5 absolute top-16 left-[20rem] md:left-[38.3125rem] w-max">
   <button className="text-2xl" onClick={handlePrevMonth}>
-    <svg width="1.9375rem" height="1.9375rem" viewBox="0 0 31 31" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="1.9375rem" height="1.9375rem" rx="0.5rem" fill="#F8F8F8"/>
-      <path d="M8.29289 16.7071C7.90237 16.3166 7.90237 15.6834 8.29289 15.2929L14.6569 8.92893C15.0474 8.53841 15.6805 8.53841 16.0711 8.92893C16.4616 9.31946 16.4616 9.95262 16.0711 10.3431L10.4142 16L16.0711 21.6569C16.4616 22.0474 16.4616 22.6805 16.0711 23.0711C15.6805 23.4616 15.0474 23.4616 14.6569 23.0711L8.29289 16.7071ZM23 17H9V15H23V17Z" fill="#7D8BF6"/>
+    <svg 
+      width="1.9375rem" 
+      height="1.9375rem" 
+      viewBox="0 0 31 31" 
+      fill="none" 
+      xmlns="http://www.w3.org/2000/svg"
+      className="transition-all duration-200 hover:scale-110 hover:shadow-md"
+    >
+      <rect width="1.9375rem" height="1.9375rem" rx="0.5rem" fill="#F8F8F8" className="hover:fill-[#e0e0e0]"/>
+      <path d="M8.29289 16.7071C7.90237 16.3166 7.90237 15.6834 8.29289 15.2929L14.6569 8.92893C15.0474 8.53841 15.6805 8.53841 16.0711 8.92893C16.4616 9.31946 16.4616 9.95262 16.0711 10.3431L10.4142 16L16.0711 21.6569C16.4616 22.0474 16.4616 22.6805 16.0711 23.0711C15.6805 23.4616 15.0474 23.4616 14.6569 23.0711L8.29289 16.7071ZM23 17H9V15H23V17Z" 
+        fill="#7D8BF6"
+        className="hover:fill-[#5a6cf0]"
+      />
     </svg>
   </button>
+
   <button className="text-2xl" onClick={handleNextMonth}>
-    <svg width="1.9375rem" height="1.9375rem" viewBox="0 0 31 31" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="1.9375rem" height="1.9375rem" rx="0.5rem" fill="#F8F8F8"/>
-      <path d="M22.7071 16.7071C23.0976 16.3166 23.0976 15.6834 22.7071 15.2929L16.3431 8.92893C15.9526 8.53841 15.3195 8.53841 14.9289 8.92893C14.5384 9.31946 14.5384 9.95262 14.9289 10.3431L20.5858 16L14.9289 21.6569C14.5384 22.0474 14.5384 22.6805 14.9289 23.0711C15.3195 23.4616 15.9526 23.4616 16.3431 23.0711L22.7071 16.7071ZM8 17H22V15H8V17Z" fill="#7D8BF6"/>
+    <svg 
+      width="1.9375rem" 
+      height="1.9375rem" 
+      viewBox="0 0 31 31" 
+      fill="none" 
+      xmlns="http://www.w3.org/2000/svg"
+      className="transition-all duration-200 hover:scale-110 hover:shadow-md"
+    >
+      <rect width="1.9375rem" height="1.9375rem" rx="0.5rem" fill="#F8F8F8" className="hover:fill-[#e0e0e0]"/>
+      <path d="M22.7071 16.7071C23.0976 16.3166 23.0976 15.6834 22.7071 15.2929L16.3431 8.92893C15.9526 8.53841 15.3195 8.53841 14.9289 8.92893C14.5384 9.31946 14.5384 9.95262 14.9289 10.3431L20.5858 16L14.9289 21.6569C14.5384 22.0474 14.5384 22.6805 14.9289 23.0711C15.3195 23.4616 15.9526 23.4616 16.3431 23.0711L22.7071 16.7071ZM8 17H22V15H8V17Z" 
+        fill="#7D8BF6"
+        className="hover:fill-[#5a6cf0]"
+      />
     </svg>
   </button>
 </div>
+
 
         </div>
         <table className="w-full max-w-[38.1875rem] max-h-[38rem] md:h-[37.6875rem] absolute top-35 left-14 md:left-[8.75rem] table-fixed">
@@ -446,7 +468,7 @@ const page = () => {
 
   {/* Input field and button stick to the bottom */}
   {selectedDate && (
-    <div className="mt-auto w-full flex items-center  bg-white shadow-md rounded-lg">
+    <div className="mt-auto p-2 w-full flex items-center  bg-white shadow-md rounded-lg">
   <form onSubmit={handleSubmit} className="flex items-center w-full">
     <input
       type="text"
@@ -456,11 +478,11 @@ const page = () => {
       name="event"
       onChange={(e) => setNewEvent(e.target.value)}
     />
-      <div className="absolute left-4 bottom-3 w-50 border-b-2 border-gray-300 transition-colors duration-200 peer-focus:border-blue-500"></div>
+      <div className="absolute left-4 bottom-3 w-45 border-b-2 border-gray-300 transition-colors duration-200 peer-focus:border-blue-500"></div>
 
     <button
       type="submit"
-      className=" p-4 bg-blue-500 text-white hover:bg-blue-600 flex items-center justify-center w-12 h-[2rem] rounded-lg"
+      className=" p-4 ml-6 bg-blue-500 text-white hover:bg-blue-600 flex items-center justify-center w-12 h-[2rem] rounded-lg"
     >
       Add
     </button>
