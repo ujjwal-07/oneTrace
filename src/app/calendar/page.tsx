@@ -158,6 +158,8 @@ const page = () => {
           setEventDataStored((prevEvents) => [...prevEvents, newEvent]);
       
           setNewEvent(""); // Clear input field
+          getEventsData()
+
         }
         else{
           alert("Activity cant be more than 200 charachters long");
@@ -212,6 +214,7 @@ const page = () => {
             
             // Update event list without reloading the whole page
             setEventDataStored((prevEvents) => prevEvents.filter((_, i) => i !== index));
+            getEventsData()
           } else {
             alert("Failed to delete event.");
           }
@@ -227,7 +230,7 @@ const page = () => {
       
         getEventsData()
         
-    },[eventDatastored,rjson])
+    },[])
   return (
     <div className= "grid sm:grid-cols-12 gap-4">
         <div className="min-h-[800px] rounded-lg  col-span-8 flex justify-start">   
