@@ -227,10 +227,10 @@ const Messages = () => {
     }
   };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
+  const handleFileChange = async(e) => {
+    const file = await e.target.files[0];
     setSelectedFile(file);
-
+    console.log("Inside file")
     const reader = new FileReader();
     reader.onload = (evt) => {
       const data = new Uint8Array(evt.target.result);
@@ -263,23 +263,24 @@ const Messages = () => {
 
       setParsedDates(formattedDates);
       console.log("Parsed Dates:", formattedDates);
+      handleSubmit(file)
+
     };
 
     reader.readAsArrayBuffer(file);
+    setSelectedFile(file)
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (file) => {
 
-    if (!selectedFile) {
-      alert("Please select a file first!");
-      return;
+    if(!file){
+      alert("Please select a file")
     }
-
-
+ 
+console.log("Inside here")
     const formData = new FormData();
-    formData.append("excelFile", selectedFile);
-
+    formData.append("excelFile", file);  
+    console.log(file)
     try {
       setLoading(true); // start loading
 
@@ -332,7 +333,7 @@ const Messages = () => {
       </div>
 
       <div className="w-full max-w-md flex flex-col gap-2">
-        <form onSubmit={handleSubmit}>
+        <form>
           <input type="file" accept=".xlsx, .xls" onChange={handleFileChange} />
           <button
             type="submit"
