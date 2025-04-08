@@ -207,17 +207,18 @@
 
 // export default Messages;
 
-
 "use client";
 import { useState } from "react";
 import axios from "axios";
 import * as XLSX from "xlsx";
+import Image from "next/image";
 
 const Messages = () => {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<string[]>([]);
   const [selectedFile, setSelectedFile] = useState(null);
   const [parsedDates, setParsedDates] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false); 
 
   const sendMessage = () => {
     if (message.trim() !== "") {
@@ -240,10 +241,9 @@ const Messages = () => {
 
       const currentYear = new Date().getFullYear();
       const formattedDates = jsonData
-        .slice(1) // skip header row
+        .slice(1)
         .map((row) => {
-          const rawDate = row[0]; // assuming date is in first column (e.g., "1-Jan")
-
+          const rawDate = row[0];
           if (typeof rawDate !== "string") return null;
 
           try {
@@ -251,8 +251,8 @@ const Messages = () => {
             if (isNaN(dateObj.getTime())) return null;
 
             const yyyy = dateObj.getFullYear();
-            const mm = dateObj.getMonth() + 1;
-            const dd = dateObj.getDate();
+            const mm = String(dateObj.getMonth() + 1).padStart(2, "0");
+            const dd = String(dateObj.getDate()).padStart(2, "0");
 
             return `${yyyy}-${dd}-${mm}`;
           } catch (error) {
@@ -276,26 +276,47 @@ const Messages = () => {
       return;
     }
 
+
     const formData = new FormData();
     formData.append("excelFile", selectedFile);
 
     try {
+      setLoading(true); // start loading
+
       const response = await axios.post("http://localhost:5000/api/store_excel_data", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
       });
 
-      console.log("Server Response:", response.data);
-      alert("File uploaded successfully!");
+      if (response.data) {
+        setLoading(false); // start loading
+        alert("File uploaded successfully!");
+      }
     } catch (error) {
-      console.error("Upload failed:", error);
-      alert("Failed to upload the file.");
+      alert(`Upload failed: ${error.response?.data?.message || "Unknown error"}`);
+    } finally {
+      setLoading(false); // stop loading in all cases
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center bg-gray-100 p-6">
+    <div className="relative min-h-screen flex flex-col items-center bg-gray-100 p-6">
+      {loading && (
+        <div className="backdrop-blur bg-white/30 fixed inset-0 bg-opacity-60 z-50  flex justify-center items-center">
+          <div className="animate-pulse flex justify-center items-center">
+            <Image  
+            className="animate-bounce"
+            src="/logoot.png"
+            alt="Window icon"
+            width={50}
+            height={50}/>
+
+<h1 className="text-[45px] text-black font-light">
+
+<span className="text-[#3D53EE] font-light">NE</span>TRACE</h1>      </div>  </div>
+      )}
+
       <h1 className="text-2xl font-bold mb-4">Discuss Your Query</h1>
 
       <div className="w-full max-w-md bg-white shadow-lg rounded-lg p-4 mb-4 h-80 overflow-y-auto">
@@ -326,4 +347,3 @@ const Messages = () => {
 };
 
 export default Messages;
-
