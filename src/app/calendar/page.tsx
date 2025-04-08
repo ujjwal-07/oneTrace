@@ -1,19 +1,22 @@
 "use client"
-
 import React from 'react'
 import { useState, useEffect } from "react";
 import api from "axios";
 import axios from 'axios';
-import Messages from '../DiscussQ/page';
 import * as XLSX from "xlsx";
 import Image from "next/image";
+
+
 
 const page = () => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [events, setEvents] = useState({});
-    const [selectedDate, setSelectedDate] = useState(`${currentDate.getFullYear()}-${currentDate.getMonth()}-${currentDate.getDate()}`);
+    const [selectedDate, setSelectedDate] = useState(`${currentDate.getFullYear()}-${currentDate.getMonth()+1}-${currentDate.getDate()}`);
     const [eventSelectedDate, setEventSelectedDate] = useState(selectedDate);
     const [newEvent, setNewEvent] = useState("");
+    const [selectedFile, setSelectedFile] = useState(null);
+    const [parsedDates, setParsedDates] = useState<string[]>([]);
+    const [loading, setLoading] = useState(false); 
     const [dropdownOpen, setDropdownOpen] = useState(null);
     const [eventsData, setEventsData] = useState([0])
     const [openlist, setOpenlist] = useState(false)
@@ -21,10 +24,6 @@ const page = () => {
     const [eventDatastored, setEventDataStored] = useState([])
     const [initialDate,setInitialDate] = useState("")
     const [rjson, setJson] = useState("")
-    const [selectedFile, setSelectedFile] = useState(null);
-    const [parsedDates, setParsedDates] = useState<string[]>([]);
-    const [loading, setLoading] = useState(false); 
-
     let date = ''
     const lightColors = [
       "bg-[#FFF7F7] border-l-8 border-[#FF847E]  text-[#353434]",
@@ -36,83 +35,94 @@ const page = () => {
     const years = Array.from({ length: 21 }, (_, i) => currentDate.getFullYear() - 10 + i);
 
 
-    // for excel upload
-    const handleFileChangeForExcel = (e) => {
-      const file = e.target.files[0];
-      console.log(file)
-      setSelectedFile(file);
-  
-      const reader = new FileReader();
-      reader.onload = (evt) => {
-        const data = new Uint8Array(evt.target.result);
-        const workbook = XLSX.read(data, { type: "array" });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-  
-        const currentYear = new Date().getFullYear();
-        const formattedDates = jsonData
-          .slice(1)
-          .map((row) => {
-            const rawDate = row[0];
-            if (typeof rawDate !== "string") return null;
-  
-            try {
-              const dateObj = new Date(`${rawDate}-${currentYear}`);
-              if (isNaN(dateObj.getTime())) return null;
-  
-              const yyyy = dateObj.getFullYear();
-              const mm = String(dateObj.getMonth() + 1).padStart(2, "0");
-              const dd = String(dateObj.getDate()).padStart(2, "0");
-  
-              return `${yyyy}-${dd}-${mm}`;
-            } catch (error) {
-              return null;
-            }
-          })
-          .filter(Boolean);
-  
-        setParsedDates(formattedDates);
-        console.log("Parsed Dates:", formattedDates);
+// code for Excel upload
 
-      };
-  
-      reader.readAsArrayBuffer(file);
-      handleSubmitForExcel()
 
-    };
-  
-    const handleSubmitForExcel = async () => {
-  
-      
-  
-      console.log("Selected file", selectedFile)
-      const formData = new FormData();
-      formData.append("excelFile", selectedFile);
-      console.log(formData)
-  
-      try {
-        setLoading(true); // start loading
-  
-        const response = await axios.post("http://localhost:5000/api/store_excel_data", formData, {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        });
-  
-        if (response.data) {
-          setLoading(false); // start loading
-          alert("File uploaded successfully!");
+const handleFileChange = async(e) => {
+  const file = await e.target.files[0];
+  setSelectedFile(file);
+  console.log("Inside file")
+  const reader = new FileReader();
+  reader.onload = (evt) => {
+    const data = new Uint8Array(evt.target.result);
+    const workbook = XLSX.read(data, { type: "array" });
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+    const currentYear = new Date().getFullYear();
+    const formattedDates = jsonData
+      .slice(1)
+      .map((row) => {
+        const rawDate = row[0];
+        if (typeof rawDate !== "string") return null;
+
+        try {
+          const dateObj = new Date(`${rawDate}-${currentYear}`);
+          if (isNaN(dateObj.getTime())) return null;
+
+          const yyyy = dateObj.getFullYear();
+          const mm = String(dateObj.getMonth() + 1).padStart(2, "0");
+          const dd = String(dateObj.getDate()).padStart(2, "0");
+
+          return `${yyyy}-${dd}-${mm}`;
+        } catch (error) {
+          return null;
         }
-      } catch (error) {
-        alert(`Upload failed: ${error.response?.data?.message || "Unknown error"}`);
-      } finally {
-        setLoading(false); // stop loading in all cases
-      }
-    };
-  
+      })
+      .filter(Boolean);
 
-  
+    setParsedDates(formattedDates);
+    console.log("Parsed Dates:", formattedDates);
+    handleSubmitForExcel(file)
+
+  };
+
+  reader.readAsArrayBuffer(file);
+  setSelectedFile(file)
+};
+
+const handleSubmitForExcel = async (file) => {
+
+  if(!file){
+    alert("Please select a file")
+  }
+
+console.log("Inside here")
+  const formData = new FormData();
+  formData.append("excelFile", file);  
+  console.log(file)
+  try {
+    setLoading(true); // start loading
+
+    const response = await axios.post("http://localhost:5000/api/store_excel_data", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+
+    if (response.data) {
+      setLoading(false); // start loading
+      alert("File uploaded successfully!");
+      getEventsData()
+    }
+  } catch (error) {
+    alert(`Upload failed: ${error.response?.data?.message || "Unknown error"}`);
+  } finally {
+    setLoading(false); // stop loading in all cases
+  }
+};
+
+
+
+
+
+
+// code end for excel upload
+
+
+
+
 
     const getEventsData = async () => {
         try {
@@ -127,15 +137,12 @@ const page = () => {
           const extractedData = data.map((d) => d.date);
           const extractlen = data.map((d) => d.events.length);
       
-          // Update states together eventsData will be used for checking whether a date have an event or not and eventsDatList 
-          //will be used for displaying the length for no of events on a specific events.
+          // Update states together
           setEventsData(extractedData);
           setEventsDataList(extractlen);
-
-          // to get the data for the selected date and then storing the data inside of eventDatastored to map it and show it under the activities lists tab.
           try {
             await axios.get(`http://localhost:5000/api/event/${selectedDate}`).then((data)=>{
-              //  setEventDataStored(data.data.events)
+               setEventDataStored(data.data.events)
            })
          } catch (error) {
            console.error("Error fetching event:", error.response ? error.response.data : error.message);
@@ -161,39 +168,31 @@ const page = () => {
             //     setEventsDataList([]);
             // }
           // Debugging: Log state inside a useEffect
-
-
-          
         } catch (error) {
           console.error("Error fetching events:", error);
         }
       };
+  console.log(eventsData, "this is the events data")
+  console.log(eventsDatList, "this is the events list data")
 
-  // console.log(eventsData, "this is the events data")
-  // console.log(eventsDatList, "this is the events list data")
-
-  // to handle prev month when clicked on prev button
     const handlePrevMonth = () => {
       setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
     };
   
-  // to handle next month when clicked on next button
     const handleNextMonth = () => {
       setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
     };
   
-  // to handle when a month is selected from month dropdown. 
     const handleMonthChange = (month) => {
       setCurrentDate(new Date(currentDate.getFullYear(), months.indexOf(month), 1));
       setDropdownOpen(null);
     };
-  // to handle when a year is selected from year dropdown.
+  
     const handleYearChange = (year) => {
       setCurrentDate(new Date(parseInt(year), currentDate.getMonth(), 1));
       setDropdownOpen(null);
     };
   
-  // function to generate calendar.
     const generateCalendar = () => {
       const year = currentDate.getFullYear();
       const month = currentDate.getMonth();
@@ -232,11 +231,9 @@ const page = () => {
       return calendar;
     };
     
-
-    // function which will be called when a new event is added
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if(newEvent.trim() !== ""){  // to check if the entered event is not empty
+        if(newEvent.trim() !== ""){
 
           
         try {
@@ -255,12 +252,14 @@ const page = () => {
           console.log("Event added:", data);
           
           // Update event list locally
-          setEventDataStored((prevEvents) => [...prevEvents, newEvent]); // update the state so that the latest added activity is visible on the activity list tab.
+          setEventDataStored((prevEvents) => [...prevEvents, newEvent]);
       
           setNewEvent(""); // Clear input field
+          getEventsData()
+
         }
         else{
-          alert("Activity cant be more than 200 charachters long"); 
+          alert("Activity cant be more than 200 charachters long");
 
         }
         } catch (error) {
@@ -274,9 +273,7 @@ const page = () => {
       };
 
 
-  // function to handle click event on the calendar date and also updating the state so that
-  // when a date is selected and if that date has any activities added it should be updated on the activity lists screen.
-
+  
     const handleDateClick = async (date) => {
       if (!date.disabled) {
         const formattedDate = `${date.year}-${date.month+1}-${date.day}`;
@@ -304,14 +301,6 @@ const page = () => {
         setNewEvent("");
       }
     };
-
-
-    // function to handle whenever a user clicks on delete event on a activity.
-    // the logic is that we take the index of the activity to be deleted and send it to the backend 
-    // and then in the backend we get the date from the database and then we remove that activity from
-    // that list and update the activity lists for that date and then we also update the state so that the 
-    // deleted activity is removed from the activity list tab and updated lists is shown
-
     const handleDeleteEvent = async (date, index) => {
         try {
           const response = await axios.post("http://localhost:5000/api/deleteEvents", { date, index });
@@ -319,10 +308,9 @@ const page = () => {
           if (response.status === 200) {
             alert("Event deleted successfully!");
             
-            // Updating activity list without reloading the whole page
+            // Update event list without reloading the whole page
             setEventDataStored((prevEvents) => prevEvents.filter((_, i) => i !== index));
             getEventsData()
-
           } else {
             alert("Failed to delete event.");
           }
@@ -334,57 +322,11 @@ const page = () => {
     const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     const calendar = generateCalendar();
 
-  const handleFileChange = (e) => {
-      const file = e.target.files[0];
-      setSelectedFile(file);
-  
-      const reader = new FileReader();
-      reader.onload = (evt) => {
-        const data = new Uint8Array(evt.target.result);
-        const workbook = XLSX.read(data, { type: "array" });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-  
-        const currentYear = new Date().getFullYear();
-        const formattedDates = jsonData
-          .slice(1)
-          .map((row) => {
-            const rawDate = row[0];
-            if (typeof rawDate !== "string") return null;
-  
-            try {
-              const dateObj = new Date(`${rawDate}-${currentYear}`);
-              if (isNaN(dateObj.getTime())) return null;
-  
-              const yyyy = dateObj.getFullYear();
-              const mm = String(dateObj.getMonth() + 1).padStart(2, "0");
-              const dd = String(dateObj.getDate()).padStart(2, "0");
-  
-              return `${yyyy}-${dd}-${mm}`;
-            } catch (error) {
-              return null;
-            }
-          })
-          .filter(Boolean);
-  
-        setParsedDates(formattedDates);
-        console.log("Parsed Dates:", formattedDates);
-      };
-  
-      reader.readAsArrayBuffer(file);
-    };
-  
-
-
-
-
     useEffect(()=>{
       
         getEventsData()
         
-    },[eventDatastored,rjson])
-
+    },[])
   return (
     <div className= "grid sm:grid-cols-12 gap-4">
         <div className="min-h-[800px] rounded-lg  col-span-8 flex justify-start">   
@@ -396,6 +338,7 @@ const page = () => {
         </div>
         <div className="mb-4 flex justify-between w-full px-4 items-center">
         <div className="relative flex gap-4 w-[9.8125rem] h-[1.75rem] absolute top-16 left-14 md:left-[6.75rem]">
+  {/* Month Button */}
   <button
     className="font-outfit font-light text-[1.375rem] leading-[1] tracking-[0.05em] align-middle text-[#737373]"
     onClick={() => setDropdownOpen(dropdownOpen === "month" ? null : "month")}
@@ -403,6 +346,7 @@ const page = () => {
     {months[currentDate.getMonth()]}
   </button>
 
+  {/* Scrollable Month Dropdown */}
   {dropdownOpen === "month" && (
     <div className="absolute top-full left-0 bg-white border border-gray-300 shadow-md mt-1 w-full z-10 max-h-48 overflow-y-auto rounded-md">
       {months.map((month) => (
@@ -417,6 +361,7 @@ const page = () => {
     </div>
   )}
 
+  {/* Year Button */}
   <button
     className="font-outfit font-light text-[1.375rem] leading-[1] tracking-[0.05em] align-middle text-[#737373]"
     onClick={() => setDropdownOpen(dropdownOpen === "year" ? null : "year")}
@@ -424,6 +369,7 @@ const page = () => {
     {currentDate.getFullYear()}
   </button>
 
+  {/* Scrollable Year Dropdown */}
   {dropdownOpen === "year" && (
     <div className="absolute top-full left-20 bg-white border border-gray-300 shadow-md mt-1 w-24 z-10 max-h-48 overflow-y-auto rounded-md">
       {years.map((year) => (
@@ -501,7 +447,7 @@ const page = () => {
                     } ${
                       date.weekend && !date.disabled ? "text-[#00D284B2]" : ""
                     } ${
-                      selectedDate === `${date.year}-${date.month}-${date.day}`
+                      selectedDate === `${date.year}-${date.month+1}-${date.day}`
                         ? "text-[#3D53EE] bg-blue-100"
                         : ""
                     }`}
@@ -530,8 +476,8 @@ const page = () => {
 <h2 className="text-md font-bold text-xl text-gray-700 mb-2 mt-2 ml-4 flex items-center justify-center">
    Activities List
 </h2>
-<form>
-<label className="relative group text-md font-bold text-gray-700 px-3 py-1 rounded hover:bg-gray-200 cursor-pointer">
+
+<label className="relative group text-md text-2xl font-bold text-gray-700 px-3 py-1 rounded hover:bg-gray-200 cursor-pointer">
   +
   {/* Wider Tooltip */}
   <span className="absolute -top-10 left-1/2 -translate-x-1/2 px-3 py-2 text-xs text-white bg-black rounded opacity-0 group-hover:opacity-100 transition duration-200 pointer-events-none z-10 min-w-[120px] text-center whitespace-nowrap">
@@ -540,15 +486,29 @@ const page = () => {
 
   <input
     type="file"
+    name="myFile"
     accept=".xlsx, .xls"
     className="absolute opacity-0 w-0 h-0"
-    onChange={handleFileChangeForExcel}
+    onChange={handleFileChange}
   />
 </label>
-</form>
 </div>
+      {loading && (
+        <div className="backdrop-blur bg-white/30 fixed inset-0 bg-opacity-60 z-50  flex justify-center items-center">
+          <div className="animate-pulse flex justify-center items-center">
+            <Image  
+            className="animate-bounce"
+            src="/logoot.png"
+            alt="Window icon"
+            width={50}
+            height={50}/>
 
+<h1 className="text-[45px] text-black font-light">
 
+<span className="text-[#3D53EE] font-light">NE</span>TRACE</h1>      </div>  </div>
+      )}
+
+    
     <hr></hr>
     
    { selectedDate ? (<h3 className="text-lg font-semibold text-blue-700 px-3 py-1 text-center mb-3">
@@ -556,6 +516,7 @@ const page = () => {
     </h3>):( <></>)}
         <div className="max-h-[490px]  overflow-y-auto flex flex-col w-full p-4 bg-white  rounded-lg">
 
+  {/* Activity List Title */}
 
   {selectedDate && eventDatastored.length > 0 ? (
     
@@ -568,12 +529,14 @@ const page = () => {
         key={index}
         className={`flex justify-between items-center ${randomColor} border-l-4 shadow-sm px-4 py-2 rounded-lg hover:opacity-70 transition-all`}
       >
+        {/* Ensure text stays within a controlled width */}
         <div className="flex-1 min-w-0">
           <span className="break-words whitespace-normal block font-medium">
             {index + 1}. {event}
           </span>
         </div>
 
+        {/* Fixed width for the delete button */}
         <button
           className="text-gray-600 hover:text-gray-800 p-2 text-lg shrink-0"
           onClick={() => handleDeleteEvent(selectedDate, index)}
@@ -604,6 +567,7 @@ const page = () => {
 
   ) : (
     <div className="flex flex-col items-center justify-center text-gray-500 mt-10">
+    {/* Animated No Events SVG */}
     <svg
       xmlns="http://www.w3.org/2000/svg"
       className="w-24 h-24 opacity-80 animate-bounce"
@@ -614,9 +578,11 @@ const page = () => {
       strokeLinecap="round"
       strokeLinejoin="round"
     >
+      {/* Clipboard */}
       <rect x="3" y="5" width="18" height="16" rx="2" ry="2" />
       <path d="M16 2v4M8 2v4M3 8h18" />
   
+      {/* Animated Checkmark */}
       <path
         d="M8 15l2 2 4-4"
         stroke="green"
@@ -631,23 +597,11 @@ const page = () => {
   </div>
   )}
 </div>
-{loading && (
-        <div className="backdrop-blur bg-white/30 fixed inset-0 bg-opacity-60 z-50  flex justify-center items-center">
-          <div className="animate-pulse flex justify-center items-center">
-            <Image  
-            className="animate-bounce"
-            src="/logoot.png"
-            alt="Window icon"
-            width={50}
-            height={50}/>
 
-<h1 className="text-[45px] text-black font-light">
-
-<span className="text-[#3D53EE] font-light">NE</span>TRACE</h1>      </div>  </div>
-      )}
 
   </div>
 
+  {/* Input field and button stick to the bottom */}
   {selectedDate && (
     <div className="mt-auto p-2 w-full flex items-center  bg-white shadow-md rounded-lg">
   <form onSubmit={handleSubmit} className="flex items-center w-full">
