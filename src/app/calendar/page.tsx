@@ -3,13 +3,19 @@ import React from 'react'
 import { useState, useEffect } from "react";
 import api from "axios";
 import axios from 'axios';
+import * as XLSX from "xlsx";
+import Image from "next/image";
+import ActivityListPage from './calender';
 
 const page = () => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [events, setEvents] = useState({});
-    const [selectedDate, setSelectedDate] = useState(`${currentDate.getFullYear()}-${currentDate.getMonth()}-${currentDate.getDate()}`);
+    const [selectedDate, setSelectedDate] = useState(`${currentDate.getFullYear()}-${currentDate.getMonth()+1}-${currentDate.getDate()}`);
     const [eventSelectedDate, setEventSelectedDate] = useState(selectedDate);
     const [newEvent, setNewEvent] = useState("");
+    const [selectedFile, setSelectedFile] = useState(null);
+    const [parsedDates, setParsedDates] = useState<string[]>([]);
+    const [loading, setLoading] = useState(false); 
     const [dropdownOpen, setDropdownOpen] = useState(null);
     const [eventsData, setEventsData] = useState([0])
     const [openlist, setOpenlist] = useState(false)
@@ -17,6 +23,8 @@ const page = () => {
     const [eventDatastored, setEventDataStored] = useState([])
     const [initialDate,setInitialDate] = useState("")
     const [rjson, setJson] = useState("")
+    const [showSecond, setShowSecond] = useState(false);
+
     let date = ''
     const lightColors = [
       "bg-[#FFF7F7] border-l-8 border-[#FF847E]  text-[#353434]",
@@ -26,6 +34,114 @@ const page = () => {
     
     const months = Array.from({ length: 12 }, (_, i) => new Date(0, i).toLocaleString("default", { month: "long" }));
     const years = Array.from({ length: 21 }, (_, i) => currentDate.getFullYear() - 10 + i);
+
+
+
+    const handleClickForActivities = () => {
+      setShowSecond(true);
+    };
+
+// code for Excel upload
+
+
+const handleFileChange = async(e) => {
+  const file = await e.target.files[0];
+  setSelectedFile(file);
+  console.log("Inside file")
+  const reader = new FileReader();
+  reader.onload = (evt) => {
+    const data = new Uint8Array(evt.target.result);
+    const workbook = XLSX.read(data, { type: "array" });
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+    const currentYear = new Date().getFullYear();
+    const formattedDates = jsonData
+      .slice(1)
+      .map((row) => {
+        const rawDate = row[0];
+        if (typeof rawDate !== "string") return null;
+
+        try {
+          const dateObj = new Date(`${rawDate}-${currentYear}`);
+          if (isNaN(dateObj.getTime())) return null;
+
+          const yyyy = dateObj.getFullYear();
+          const mm = String(dateObj.getMonth() + 1).padStart(2, "0");
+          const dd = String(dateObj.getDate()).padStart(2, "0");
+
+          return `${yyyy}-${dd}-${mm}`;
+        } catch (error) {
+          return null;
+        }
+      })
+      .filter(Boolean);
+
+    setParsedDates(formattedDates);
+    console.log("Parsed Dates:", formattedDates);
+    handleSubmitForExcel(file)
+    e.target.value = null;
+
+
+  };
+
+  reader.readAsArrayBuffer(file);
+  setSelectedFile(file)
+};
+
+const handleSubmitForExcel = async (file) => {
+
+  if(!file){
+    alert("Please select a file")
+  }
+
+console.log("Inside here")
+  const formData = new FormData();
+  formData.append("excelFile", file);  
+  console.log(file)
+  try {
+    setLoading(true); // start loading
+
+    const response = await axios.post("http://localhost:5000/api/store_excel_data", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+
+    if (response.data) {
+      setLoading(false); // start loading
+      alert("File uploaded successfully!");
+      setSelectedFile(null)
+      getEventsData()
+    }
+  } catch (error) {
+    alert(`Upload failed: ${error.response?.data?.message || "Unknown error"}`);
+  
+    setSelectedFile(null)
+  } finally {
+    setLoading(false); // stop loading in all cases
+  }
+};
+
+
+// const handleOpenModal = (ques) => {
+//   setShowModal(true);
+//   setSelectedQues(ques)
+// };
+
+// const handleCloseModal = () => {
+//   setShowModal(false);
+// };
+
+
+
+
+// code end for excel upload
+
+
+
+
 
     const getEventsData = async () => {
         try {
@@ -146,18 +262,22 @@ const page = () => {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ date: selectedDate, event: newEvent }),
           });
-      
-          if (!response.ok) {
-            throw new Error("Failed to add event");
+          
+          if (response.status == 400) {
+            console.log(response.data)
+            alert(`${newEvent} already present in the Activity List for date ${selectedDate}`);
           }
       
           const data = await response.json();
           console.log("Event added:", data);
           
+          if(response.ok){
           // Update event list locally
           setEventDataStored((prevEvents) => [...prevEvents, newEvent]);
       
           setNewEvent(""); // Clear input field
+          getEventsData()
+          }
         }
         else{
           alert("Activity cant be more than 200 charachters long");
@@ -177,8 +297,7 @@ const page = () => {
   
     const handleDateClick = async (date) => {
       if (!date.disabled) {
-        const formattedDate = `${date.year}-${date.month}-${date.day}`;
-        setEventSelectedDate(`${date.year}/${date.month+1}/${date.day}`)
+        const formattedDate = `${date.year}-${date.month+1}-${date.day}`;
         setSelectedDate(selectedDate === formattedDate ? null : formattedDate);
         console.log(selectedDate, "it is ",formattedDate)
         
@@ -204,6 +323,8 @@ const page = () => {
       }
     };
     const handleDeleteEvent = async (date, index) => {
+      const descision = confirm("Do you want to delete this Activity ?")
+      if(descision){
         try {
           const response = await axios.post("http://localhost:5000/api/deleteEvents", { date, index });
       
@@ -212,6 +333,7 @@ const page = () => {
             
             // Update event list without reloading the whole page
             setEventDataStored((prevEvents) => prevEvents.filter((_, i) => i !== index));
+            getEventsData()
           } else {
             alert("Failed to delete event.");
           }
@@ -219,6 +341,10 @@ const page = () => {
           console.error("Error deleting event:", error);
           alert("Failed to delete event.");
         }
+      }
+      else{
+        
+      }
       };
     const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     const calendar = generateCalendar();
@@ -227,9 +353,13 @@ const page = () => {
       
         getEventsData()
         
-    },[eventDatastored,rjson])
+    },[selectedFile])
   return (
+<>
+{showSecond ? ( <ActivityListPage />):(
+
     <div className= "grid sm:grid-cols-12 gap-4">
+
         <div className="min-h-[800px] rounded-lg  col-span-8 flex justify-start">   
           <div className="w-3/4 p-4 flex flex-col items-center relative">
       <div className="w-full max-w-80 h-8 absolute top-8 -translate-x-1/2 left-14 md:left-[8.75rem] md:translate-x-0">
@@ -348,7 +478,7 @@ const page = () => {
                     } ${
                       date.weekend && !date.disabled ? "text-[#00D284B2]" : ""
                     } ${
-                      selectedDate === `${date.year}-${date.month}-${date.day}`
+                      selectedDate === `${date.year}-${date.month+1}-${date.day}`
                         ? "text-[#3D53EE] bg-blue-100"
                         : ""
                     }`}
@@ -359,20 +489,61 @@ const page = () => {
                       
                       
                     </span>
-                    {(eventsData.includes(`${date.year}-${date.month}-${date.day}`) && eventsDatList[eventsData.indexOf(`${date.year}-${date.month}-${date.day}`)] > 0 )&&  
+                    {(eventsData.includes(`${date.year}-${date.month+1}-${date.day}`) && eventsDatList[eventsData.indexOf(`${date.year}-${date.month+1}-${date.day}`)] > 0 )&&  
   <div className="rounded-[5px] h-[21px] w-[35px] bg-[#FF625B] absolute top-[3.5625rem] left-[0.1625rem] grid place-items-center text-white text-sm">
-    {  eventsDatList[eventsData.indexOf(`${date.year}-${date.month}-${date.day}`)]}
+    {  eventsDatList[eventsData.indexOf(`${date.year}-${date.month+1}-${date.day}`)]}
   </div>
 }                  </td>
                 ))}
               </tr>
             ))}
           </tbody>
+            <div className='p-4'>
+          <button className='rounded-[5px] bg-[#3D53EE] text-white w-40 h-10' onClick={handleClickForActivities}>List of Activities</button>
+          </div>
         </table>
-      </div></div>
+      </div>
+      
+      </div>
       <div className="max-h-[673px] relative top-[70px] border border-gray-200 bg-white rounded-lg col-span-3 flex flex-col ">
   <div>
-  <h2 className="text-md font-bold text-xl text-gray-700 mb-4 mt-4 flex items-center justify-center">📌 Activities List</h2>
+  <div className="flex justify-between items-center mb-4 mt-4">
+
+<h2 className="text-md font-bold text-xl text-gray-700 mb-2 mt-2 ml-4 flex items-center justify-center">
+   Activities List
+</h2>
+
+<label className="relative group text-md text-2xl font-bold text-gray-700 px-3 py-1 rounded hover:bg-gray-200 cursor-pointer">
+  +
+  {/* Wider Tooltip */}
+  <span className="absolute -top-10 left-1/2 -translate-x-1/2 px-3 py-2 text-xs text-white bg-black rounded opacity-0 group-hover:opacity-100 transition duration-200 pointer-events-none z-10 min-w-[120px] text-center whitespace-nowrap">
+    Select a file to upload
+  </span>
+
+  <input
+    type="file"
+    name="myFile"
+    accept=".xlsx, .xls"
+    className="absolute opacity-0 w-0 h-0"
+    onChange={handleFileChange}
+  />
+</label>
+</div>
+      {loading && (
+        <div className="backdrop-blur bg-white/30 fixed inset-0 bg-opacity-60 z-50  flex justify-center items-center">
+          <div className="animate-pulse flex justify-center items-center">
+            <Image  
+            className="animate-bounce"
+            src="/logoot.png"
+            alt="Window icon"
+            width={50}
+            height={50}/>
+
+<h1 className="text-[45px] text-black font-light">
+
+<span className="text-[#3D53EE] font-light">NE</span>TRACE</h1>      </div>  </div>
+      )}
+
     
     <hr></hr>
     
@@ -403,7 +574,7 @@ const page = () => {
 
         {/* Fixed width for the delete button */}
         <button
-          className="text-gray-600 hover:text-gray-800 p-2 text-lg shrink-0"
+          className="text-gray-600 hover:text-gray-800 p-2 text-lg shrink-0 cursor-pointer"
           onClick={() => handleDeleteEvent(selectedDate, index)}
         >
           <svg
@@ -492,7 +663,10 @@ const page = () => {
 </div>
 
 
+
     </div>
+    )}
+    </>
   )
 }
 
